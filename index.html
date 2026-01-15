@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Readfast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Landing Split View */
+    #landing {
+      display: flex;
+      height: 100vh;
+    }
+
+    #landing.hidden {
+      display: none;
+    }
+
+    .panel {
+      flex: 1;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-left {
+      border-right: 1px solid #333;
+    }
+
+    .panel h2 {
+      margin-bottom: 1rem;
+      font-weight: 400;
+      color: #888;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #text-input {
+      flex: 1;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem;
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: none;
+      line-height: 1.6;
+    }
+
+    #text-input:focus {
+      outline: none;
+      border-color: #555;
+    }
+
+    #text-input::placeholder {
+      color: #555;
+    }
+
+    .drop-zone {
+      margin-top: 1rem;
+      padding: 2rem;
+      border: 2px dashed #333;
+      border-radius: 8px;
+      text-align: center;
+      color: #555;
+      transition: all 0.2s;
+    }
+
+    .drop-zone.drag-over {
+      border-color: #c44;
+      background: rgba(204, 68, 68, 0.1);
+      color: #c44;
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .drop-zone label {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .preview {
+      flex: 1;
+      background: #0a0a0a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      overflow-y: auto;
+      line-height: 1.8;
+      color: #aaa;
+    }
+
+    .preview.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-style: italic;
+    }
+
+    .start-btn {
+      margin-top: 1rem;
+      padding: 1rem 2rem;
+      background: #c44;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .start-btn:hover {
+      background: #d55;
+    }
+
+    .start-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    /* Reader Full Screen */
+    #reader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      flex-direction: column;
+    }
+
+    #reader.active {
+      display: flex;
+    }
+
+    .reader-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .word-container {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Grey alignment guides - fixed at center */
+    .guide-h-top, .guide-h-bottom {
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: #333;
+    }
+
+    .guide-h-top {
+      top: 0;
+    }
+
+    .guide-h-bottom {
+      bottom: 0;
+    }
+
+    .guide-v {
+      position: absolute;
+      left: 50%;
+      top: -20px;
+      bottom: -20px;
+      width: 1px;
+      background: #333;
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+
+    .word-display {
+      font-size: clamp(3rem, 8vw, 6rem);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      position: absolute;
+      background: #000;
+      padding: 0 0.3em;
+      z-index: 2;
+      /* Will be positioned via JS to align ORP with center */
+    }
+
+    .word-display .orp {
+      color: #c44;
+    }
+
+    /* Controls */
+    .controls {
+      padding: 1.5rem 2rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    }
+
+    .progress-container {
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #c44;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .progress-handle {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .progress-container:hover .progress-handle {
+      opacity: 1;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-btn {
+      background: none;
+      border: 1px solid #444;
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 1.2rem;
+    }
+
+    .control-btn:hover {
+      background: #222;
+      border-color: #666;
+    }
+
+    .control-btn.play-btn {
+      width: 56px;
+      height: 56px;
+      font-size: 1.4rem;
+    }
+
+    .wpm-control {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .wpm-slider {
+      width: 120px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: #333;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .wpm-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .wpm-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .wpm-input {
+      width: 60px;
+      background: #111;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 0.4rem;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .wpm-input:focus {
+      outline: none;
+      border-color: #555;
+    }
+
+    .wpm-label {
+      color: #666;
+      font-size: 0.8rem;
+    }
+
+    .position-info {
+      color: #666;
+      font-size: 0.85rem;
+    }
+
+    .exit-btn {
+      background: none;
+      border: 1px solid #333;
+      color: #666;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .exit-btn:hover {
+      border-color: #555;
+      color: #999;
+    }
+
+    /* Drag overlay for reader */
+    .drag-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      border: 4px dashed #c44;
+    }
+
+    .drag-overlay.active {
+      display: flex;
+    }
+
+    .drag-overlay span {
+      font-size: 1.5rem;
+      color: #c44;
+    }
+  </style>
+</head>
+<body>
+  <!-- Landing Split View -->
+  <div id="landing">
+    <div class="panel panel-left">
+      <h2>Input</h2>
+      <textarea id="text-input" placeholder="Paste your text here..."></textarea>
+      <div class="drop-zone" id="drop-zone">
+        <p>Drop .epub or .txt file here</p>
+        <p>or <label for="file-input">browse</label></p>
+        <input type="file" id="file-input" accept=".epub,.txt">
+      </div>
+    </div>
+    <div class="panel panel-right">
+      <h2>Preview</h2>
+      <div class="preview empty" id="preview">
+        <span>Text will appear here</span>
+      </div>
+      <button class="start-btn" id="start-btn" disabled>Start Reading</button>
+    </div>
+  </div>
+
+  <!-- Reader Full Screen -->
+  <div id="reader">
+    <div class="reader-display">
+      <div class="word-container">
+        <div class="guide-h-top"></div>
+        <div class="guide-h-bottom"></div>
+        <div class="guide-v" id="guide-v"></div>
+        <div class="word-display" id="word-display"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="progress-container" id="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+          <div class="progress-handle" id="progress-handle"></div>
+        </div>
+      </div>
+      <div class="controls-row">
+        <div class="control-group">
+          <button class="control-btn" id="skip-back" title="Skip back 5s (←)">⏪</button>
+          <button class="control-btn play-btn" id="play-btn" title="Play/Pause (Space)">▶</button>
+          <button class="control-btn" id="skip-forward" title="Skip forward 5s (→)">⏩</button>
+        </div>
+        <div class="wpm-control">
+          <input type="range" class="wpm-slider" id="wpm-slider" min="100" max="1000" value="300">
+          <input type="number" class="wpm-input" id="wpm-input" min="100" max="1000" value="300">
+          <span class="wpm-label">WPM</span>
+        </div>
+        <div class="position-info" id="position-info">0 / 0</div>
+        <button class="exit-btn" id="exit-btn">Exit (Esc)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag Overlay -->
+  <div class="drag-overlay" id="drag-overlay">
+    <span>Drop file to load</span>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    // State
+    const state = {
+      text: '',
+      words: [],
+      position: 0,
+      wpm: 300,
+      playing: false,
+      source: 'pasted',
+      timeoutId: null
+    };
+
+    // Elements
+    const landing = document.getElementById('landing');
+    const reader = document.getElementById('reader');
+    const textInput = document.getElementById('text-input');
+    const preview = document.getElementById('preview');
+    const startBtn = document.getElementById('start-btn');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const wordDisplay = document.getElementById('word-display');
+    const guideV = document.getElementById('guide-v');
+    const playBtn = document.getElementById('play-btn');
+    const skipBack = document.getElementById('skip-back');
+    const skipForward = document.getElementById('skip-forward');
+    const wpmSlider = document.getElementById('wpm-slider');
+    const wpmInput = document.getElementById('wpm-input');
+    const progressContainer = document.getElementById('progress-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressHandle = document.getElementById('progress-handle');
+    const positionInfo = document.getElementById('position-info');
+    const exitBtn = document.getElementById('exit-btn');
+    const dragOverlay = document.getElementById('drag-overlay');
+
+    // ORP (Optimal Recognition Point) - ~30% into word
+    function getORPIndex(word) {
+      const len = word.length;
+      if (len <= 1) return 0;
+      if (len <= 5) return 1;
+      if (len <= 9) return 2;
+      if (len <= 13) return 3;
+      return 4;
+    }
+
+    // Render word with ORP highlight, positioned so ORP is at screen center
+    function renderWord(word) {
+      if (!word) {
+        wordDisplay.innerHTML = '';
+        return;
+      }
+
+      const orpIndex = getORPIndex(word);
+      const before = word.slice(0, orpIndex);
+      const orp = word[orpIndex] || '';
+      const after = word.slice(orpIndex + 1);
+
+      // Reset position and render
+      wordDisplay.style.visibility = 'hidden';
+      wordDisplay.style.left = '50%';
+      wordDisplay.style.transform = 'translateX(-50%)';
+      wordDisplay.innerHTML = `<span class="before">${before}</span><span class="orp">${orp}</span><span>${after}</span>`;
+
+      // Measure actual positions and correct
+      requestAnimationFrame(() => {
+        const orpSpan = wordDisplay.querySelector('.orp');
+        const container = wordDisplay.parentElement;
+
+        if (orpSpan && container) {
+          const containerRect = container.getBoundingClientRect();
+          const containerCenter = containerRect.left + containerRect.width / 2;
+          const orpRect = orpSpan.getBoundingClientRect();
+          const orpCenter = orpRect.left + orpRect.width / 2;
+
+          // How far off is the ORP from center? Shift by that amount
+          const correction = orpCenter - containerCenter;
+
+          wordDisplay.style.transform = `translateX(calc(-50% - ${correction}px))`;
+          wordDisplay.style.visibility = 'visible';
+        }
+      });
+    }
+
+    // Get delay multiplier based on punctuation
+    function getDelayMultiplier(word) {
+      if (!word) return 1;
+      const last = word[word.length - 1];
+      if ('.!?'.includes(last)) return 2;
+      if (',:;'.includes(last)) return 1.5;
+      return 1;
+    }
+
+    // Parse text into words
+    function parseText(text) {
+      return text.trim().split(/\s+/).filter(w => w.length > 0);
+    }
+
+    // Update preview
+    function updatePreview() {
+      const text = state.text || textInput.value;
+      if (text.trim()) {
+        preview.classList.remove('empty');
+        preview.innerHTML = text.slice(0, 2000) + (text.length > 2000 ? '...' : '');
+        startBtn.disabled = false;
+      } else {
+        preview.classList.add('empty');
+        preview.innerHTML = '<span>Text will appear here</span>';
+        startBtn.disabled = true;
+      }
+    }
+
+    // Update progress bar
+    function updateProgress() {
+      const percent = state.words.length > 0 ? (state.position / state.words.length) * 100 : 0;
+      progressFill.style.width = `${percent}%`;
+      progressHandle.style.left = `${percent}%`;
+      positionInfo.textContent = `${state.position} / ${state.words.length}`;
+    }
+
+    // Play next word
+    function playNext() {
+      if (!state.playing || state.position >= state.words.length) {
+        if (state.position >= state.words.length) {
+          pause();
+        }
+        return;
+      }
+
+      const word = state.words[state.position];
+      renderWord(word);
+      updateProgress();
+
+      const baseDelay = 60000 / state.wpm;
+      const delay = baseDelay * getDelayMultiplier(word);
+
+      state.position++;
+      saveState();
+
+      state.timeoutId = setTimeout(playNext, delay);
+    }
+
+    // Play
+    function play() {
+      if (state.position >= state.words.length) {
+        state.position = 0;
+      }
+      state.playing = true;
+      playBtn.textContent = '⏸';
+      playNext();
+    }
+
+    // Pause
+    function pause() {
+      state.playing = false;
+      playBtn.textContent = '▶';
+      if (state.timeoutId) {
+        clearTimeout(state.timeoutId);
+        state.timeoutId = null;
+      }
+    }
+
+    // Toggle play/pause
+    function togglePlay() {
+      if (state.playing) {
+        pause();
+      } else {
+        play();
+      }
+    }
+
+    // Skip by seconds (time-based)
+    function skip(seconds) {
+      const wordsToSkip = Math.round((state.wpm / 60) * Math.abs(seconds));
+      if (seconds < 0) {
+        state.position = Math.max(0, state.position - wordsToSkip);
+      } else {
+        state.position = Math.min(state.words.length, state.position + wordsToSkip);
+      }
+      updateProgress();
+      if (state.words[state.position]) {
+        renderWord(state.words[state.position]);
+      }
+      saveState();
+    }
+
+    // Set WPM
+    function setWPM(wpm) {
+      state.wpm = Math.max(100, Math.min(1000, wpm));
+      wpmSlider.value = state.wpm;
+      wpmInput.value = state.wpm;
+      saveState();
+    }
+
+    // Seek to position
+    function seekTo(percent) {
+      state.position = Math.floor((percent / 100) * state.words.length);
+      updateProgress();
+      if (state.words[state.position]) {
+        renderWord(state.words[state.position]);
+      }
+      saveState();
+    }
+
+    // Enter reader mode
+    function enterReader() {
+      const text = state.text || textInput.value;
+      if (!text.trim()) return;
+
+      state.text = text;
+      state.words = parseText(text);
+
+      if (state.position >= state.words.length) {
+        state.position = 0;
+      }
+
+      landing.classList.add('hidden');
+      reader.classList.add('active');
+
+      updateProgress();
+      if (state.words[state.position]) {
+        renderWord(state.words[state.position]);
+      }
+
+      saveState();
+    }
+
+    // Exit reader mode
+    function exitReader() {
+      pause();
+      reader.classList.remove('active');
+      landing.classList.remove('hidden');
+      textInput.value = state.text;
+      updatePreview();
+    }
+
+    // Save state to localStorage
+    function saveState() {
+      localStorage.setItem('readfast', JSON.stringify({
+        text: state.text,
+        position: state.position,
+        wpm: state.wpm,
+        source: state.source
+      }));
+    }
+
+    // Load state from localStorage
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('readfast');
+        if (saved) {
+          const data = JSON.parse(saved);
+          state.text = data.text || '';
+          state.position = data.position || 0;
+          state.wpm = data.wpm || 300;
+          state.source = data.source || 'pasted';
+
+          textInput.value = state.text;
+          setWPM(state.wpm);
+          updatePreview();
+
+          if (state.text) {
+            state.words = parseText(state.text);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load state:', e);
+      }
+    }
+
+    // Handle file drop/select
+    async function handleFile(file) {
+      if (!file) return;
+
+      state.source = `file:${file.name}`;
+
+      if (file.name.endsWith('.txt')) {
+        state.text = await file.text();
+        state.position = 0;
+        textInput.value = state.text;
+        updatePreview();
+      } else if (file.name.endsWith('.epub')) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const zip = await JSZip.loadAsync(arrayBuffer);
+
+          // Find container.xml to get rootfile path
+          const containerXml = await zip.file('META-INF/container.xml')?.async('string');
+          if (!containerXml) throw new Error('Invalid EPUB: no container.xml');
+
+          const rootfileMatch = containerXml.match(/full-path="([^"]+)"/);
+          if (!rootfileMatch) throw new Error('Invalid EPUB: no rootfile');
+
+          const rootfilePath = rootfileMatch[1];
+          const rootfileDir = rootfilePath.substring(0, rootfilePath.lastIndexOf('/') + 1);
+
+          // Parse OPF to get spine order
+          const opfContent = await zip.file(rootfilePath)?.async('string');
+          if (!opfContent) throw new Error('Invalid EPUB: no OPF file');
+
+          // Get manifest items
+          const manifest = {};
+          const itemMatches = opfContent.matchAll(/<item[^>]+id="([^"]+)"[^>]+href="([^"]+)"[^>]*>/g);
+          for (const match of itemMatches) {
+            manifest[match[1]] = match[2];
+          }
+
+          // Get spine order
+          const spineMatches = opfContent.matchAll(/<itemref[^>]+idref="([^"]+)"[^>]*>/g);
+          const spineItems = [];
+          for (const match of spineMatches) {
+            if (manifest[match[1]]) {
+              spineItems.push(manifest[match[1]]);
+            }
+          }
+
+          // Extract text from HTML files in spine order
+          let fullText = '';
+          for (const href of spineItems) {
+            const filePath = rootfileDir + href;
+            const content = await zip.file(filePath)?.async('string');
+            if (content) {
+              // Strip HTML tags and decode entities
+              const temp = document.createElement('div');
+              temp.innerHTML = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                                      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+              const text = temp.textContent || temp.innerText || '';
+              fullText += text + '\n\n';
+            }
+          }
+
+          state.text = fullText.trim();
+          state.position = 0;
+          textInput.value = state.text;
+          updatePreview();
+        } catch (e) {
+          console.error('Failed to parse EPUB:', e);
+          alert('Failed to parse EPUB file: ' + e.message);
+        }
+      }
+    }
+
+    // Event Listeners
+
+    // Text input
+    textInput.addEventListener('input', () => {
+      state.text = textInput.value;
+      state.position = 0;
+      state.source = 'pasted';
+      updatePreview();
+      saveState();
+    });
+
+    // Start button
+    startBtn.addEventListener('click', enterReader);
+
+    // Drop zone
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      handleFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      handleFile(fileInput.files[0]);
+    });
+
+    // Global drag/drop for reader
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (reader.classList.contains('active')) {
+        dragOverlay.classList.add('active');
+      }
+    });
+
+    document.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null) {
+        dragOverlay.classList.remove('active');
+      }
+    });
+
+    document.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragOverlay.classList.remove('active');
+      if (reader.classList.contains('active')) {
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          pause();
+          handleFile(file).then(() => {
+            state.words = parseText(state.text);
+            state.position = 0;
+            updateProgress();
+            renderWord(state.words[0]);
+          });
+        }
+      }
+    });
+
+    // Play/pause
+    playBtn.addEventListener('click', togglePlay);
+
+    // Skip buttons
+    skipBack.addEventListener('click', () => skip(-5));
+    skipForward.addEventListener('click', () => skip(5));
+
+    // WPM controls
+    wpmSlider.addEventListener('input', () => setWPM(parseInt(wpmSlider.value)));
+    wpmInput.addEventListener('change', () => setWPM(parseInt(wpmInput.value)));
+
+    // Progress bar seeking
+    let isDragging = false;
+
+    progressContainer.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      const rect = progressContainer.getBoundingClientRect();
+      const percent = ((e.clientX - rect.left) / rect.width) * 100;
+      seekTo(Math.max(0, Math.min(100, percent)));
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = progressContainer.getBoundingClientRect();
+      const percent = ((e.clientX - rect.left) / rect.width) * 100;
+      seekTo(Math.max(0, Math.min(100, percent)));
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Exit button
+    exitBtn.addEventListener('click', exitReader);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Only handle in reader mode, and not when typing in inputs
+      if (!reader.classList.contains('active')) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          skip(-5);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          skip(5);
+          break;
+        case 'Equal':
+        case 'NumpadAdd':
+          e.preventDefault();
+          setWPM(state.wpm + 50);
+          break;
+        case 'Minus':
+        case 'NumpadSubtract':
+          e.preventDefault();
+          setWPM(state.wpm - 50);
+          break;
+        case 'Escape':
+          e.preventDefault();
+          exitReader();
+          break;
+      }
+    });
+
+    // Initialize
+    loadState();
+  </script>
+</body>
+</html>
