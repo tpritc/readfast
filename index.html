@@ -15,51 +15,42 @@
     }
 
     body {
-      font-family: 'Libre Baskerville', Georgia, serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: #000;
       color: #fff;
       min-height: 100vh;
       overflow: hidden;
     }
 
-    /* Landing Split View */
+    /* Landing */
     #landing {
       display: flex;
+      align-items: center;
+      justify-content: center;
       height: 100vh;
+      padding: 2rem;
     }
 
     #landing.hidden {
       display: none;
     }
 
-    .panel {
-      flex: 1;
-      padding: 2rem;
+    .landing-content {
+      width: 100%;
+      max-width: 600px;
       display: flex;
       flex-direction: column;
-    }
-
-    .panel-left {
-      border-right: 1px solid #333;
-    }
-
-    .panel h2 {
-      margin-bottom: 1rem;
-      font-weight: 400;
-      color: #888;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      gap: 1rem;
     }
 
     #text-input {
-      flex: 1;
+      height: 200px;
       background: #111;
       border: 1px solid #333;
       border-radius: 8px;
       padding: 1rem;
       color: #fff;
-      font-family: inherit;
+      font-family: 'Libre Baskerville', Georgia, serif;
       font-size: 1rem;
       resize: none;
       line-height: 1.6;
@@ -75,8 +66,7 @@
     }
 
     .drop-zone {
-      margin-top: 1rem;
-      padding: 2rem;
+      padding: 1.5rem;
       border: 2px dashed #333;
       border-radius: 8px;
       text-align: center;
@@ -99,32 +89,12 @@
       text-decoration: underline;
     }
 
-    .preview {
-      flex: 1;
-      background: #0a0a0a;
-      border-radius: 8px;
-      padding: 1.5rem;
-      overflow-y: auto;
-      line-height: 1.8;
-      color: #aaa;
-    }
-
-    .preview.empty {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #444;
-      font-style: italic;
-    }
-
     .start-btn {
-      margin-top: 1rem;
       padding: 1rem 2rem;
       background: #c44;
       border: none;
       border-radius: 8px;
       color: #fff;
-      font-family: inherit;
       font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s;
@@ -199,6 +169,7 @@
     }
 
     .word-display {
+      font-family: 'Libre Baskerville', Georgia, serif;
       font-size: clamp(3rem, 8vw, 6rem);
       letter-spacing: 0.02em;
       white-space: nowrap;
@@ -429,21 +400,13 @@
   </style>
 </head>
 <body>
-  <!-- Landing Split View -->
+  <!-- Landing -->
   <div id="landing">
-    <div class="panel panel-left">
-      <h2>Input</h2>
+    <div class="landing-content">
       <textarea id="text-input" placeholder="Paste your text here..."></textarea>
       <div class="drop-zone" id="drop-zone">
-        <p>Drop .epub or .txt file here</p>
-        <p>or <label for="file-input">browse</label></p>
+        <p>Drop .epub or .txt file here, or <label for="file-input">browse</label></p>
         <input type="file" id="file-input" accept=".epub,.txt">
-      </div>
-    </div>
-    <div class="panel panel-right">
-      <h2>Preview</h2>
-      <div class="preview empty" id="preview">
-        <span>Text will appear here</span>
       </div>
       <button class="start-btn" id="start-btn" disabled>Start Reading</button>
     </div>
@@ -507,7 +470,6 @@
     const landing = document.getElementById('landing');
     const reader = document.getElementById('reader');
     const textInput = document.getElementById('text-input');
-    const preview = document.getElementById('preview');
     const startBtn = document.getElementById('start-btn');
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -605,18 +567,10 @@
       return text.trim().split(/\s+/).filter(w => w.length > 0);
     }
 
-    // Update preview
-    function updatePreview() {
+    // Update start button state
+    function updateStartButton() {
       const text = state.text || textInput.value;
-      if (text.trim()) {
-        preview.classList.remove('empty');
-        preview.innerHTML = text.slice(0, 2000) + (text.length > 2000 ? '...' : '');
-        startBtn.disabled = false;
-      } else {
-        preview.classList.add('empty');
-        preview.innerHTML = '<span>Text will appear here</span>';
-        startBtn.disabled = true;
-      }
+      startBtn.disabled = !text.trim();
     }
 
     // Update progress bar
@@ -742,7 +696,7 @@
       reader.classList.remove('active');
       landing.classList.remove('hidden');
       textInput.value = state.text;
-      updatePreview();
+      updateStartButton();
     }
 
     // Save state to localStorage
@@ -768,7 +722,7 @@
 
           textInput.value = state.text;
           setWPM(state.wpm);
-          updatePreview();
+          updateStartButton();
 
           if (state.text) {
             state.words = parseText(state.text);
@@ -789,7 +743,7 @@
         state.text = await file.text();
         state.position = 0;
         textInput.value = state.text;
-        updatePreview();
+        updateStartButton();
       } else if (file.name.endsWith('.epub')) {
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -848,7 +802,7 @@
           state.text = fullText.trim();
           state.position = 0;
           textInput.value = state.text;
-          updatePreview();
+          updateStartButton();
         } catch (e) {
           console.error('Failed to parse EPUB:', e);
           alert('Failed to parse EPUB file: ' + e.message);
@@ -863,7 +817,7 @@
       state.text = textInput.value;
       state.position = 0;
       state.source = 'pasted';
-      updatePreview();
+      updateStartButton();
       saveState();
     });
 
