@@ -809,11 +809,16 @@
           const opfContent = await zip.file(rootfilePath)?.async('string');
           if (!opfContent) throw new Error('Invalid EPUB: no OPF file');
 
-          // Get manifest items
+          // Get manifest items (handle any attribute order)
           const manifest = {};
-          const itemMatches = opfContent.matchAll(/<item[^>]+id="([^"]+)"[^>]+href="([^"]+)"[^>]*>/g);
+          const itemMatches = opfContent.matchAll(/<item\s+([^>]+)\/?\s*>/g);
           for (const match of itemMatches) {
-            manifest[match[1]] = match[2];
+            const attrs = match[1];
+            const idMatch = attrs.match(/id="([^"]+)"/);
+            const hrefMatch = attrs.match(/href="([^"]+)"/);
+            if (idMatch && hrefMatch) {
+              manifest[idMatch[1]] = hrefMatch[1];
+            }
           }
 
           // Get spine order
