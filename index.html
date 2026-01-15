@@ -6,7 +6,7 @@
   <title>Readfast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -213,6 +213,52 @@
       color: #c44;
     }
 
+    /* Reader UI - auto-hide */
+    .reader-ui {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: opacity 0.3s ease;
+    }
+
+    #reader.ui-hidden .reader-ui {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #reader.ui-hidden {
+      cursor: none;
+    }
+
+    /* Top bar */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 10;
+    }
+
+    .top-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #999;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 1.1rem;
+    }
+
+    .top-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
     /* Controls */
     .controls {
       padding: 1.5rem 2rem;
@@ -272,15 +318,17 @@
       background: none;
       border: 1px solid #444;
       color: #fff;
-      width: 44px;
+      padding: 0 1rem;
       height: 44px;
-      border-radius: 50%;
+      border-radius: 22px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
-      font-size: 1.2rem;
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
     }
 
     .control-btn:hover {
@@ -291,7 +339,9 @@
     .control-btn.play-btn {
       width: 56px;
       height: 56px;
+      border-radius: 50%;
       font-size: 1.4rem;
+      padding: 0;
     }
 
     .wpm-control {
@@ -334,7 +384,7 @@
       color: #fff;
       padding: 0.4rem;
       border-radius: 4px;
-      font-family: inherit;
+      font-family: 'Inter', sans-serif;
       font-size: 0.9rem;
       text-align: center;
     }
@@ -349,26 +399,11 @@
       font-size: 0.8rem;
     }
 
-    .position-info {
-      color: #666;
-      font-size: 0.85rem;
-    }
-
-    .exit-btn {
-      background: none;
-      border: 1px solid #333;
-      color: #666;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.85rem;
-      transition: all 0.2s;
-    }
-
-    .exit-btn:hover {
-      border-color: #555;
-      color: #999;
+    /* Mobile: hide slider, just show input */
+    @media (max-width: 600px) {
+      .wpm-slider {
+        display: none;
+      }
     }
 
     /* Drag overlay for reader */
@@ -416,6 +451,10 @@
 
   <!-- Reader Full Screen -->
   <div id="reader">
+    <div class="top-bar reader-ui">
+      <button class="top-btn" id="fullscreen-btn" title="Fullscreen">⛶</button>
+      <button class="top-btn" id="exit-btn" title="Exit">✕</button>
+    </div>
     <div class="reader-display">
       <div class="word-container">
         <div class="guide-h-top"></div>
@@ -424,7 +463,7 @@
         <div class="word-display" id="word-display"></div>
       </div>
     </div>
-    <div class="controls">
+    <div class="controls reader-ui">
       <div class="progress-container" id="progress-container">
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
@@ -433,17 +472,15 @@
       </div>
       <div class="controls-row">
         <div class="control-group">
-          <button class="control-btn" id="skip-back" title="Skip back 5s (←)">⏪</button>
-          <button class="control-btn play-btn" id="play-btn" title="Play/Pause (Space)">▶</button>
-          <button class="control-btn" id="skip-forward" title="Skip forward 5s (→)">⏩</button>
+          <button class="control-btn" id="skip-back">-5s</button>
+          <button class="control-btn play-btn" id="play-btn">▶</button>
+          <button class="control-btn" id="skip-forward">+5s</button>
         </div>
         <div class="wpm-control">
           <input type="range" class="wpm-slider" id="wpm-slider" min="100" max="1000" value="300">
           <input type="number" class="wpm-input" id="wpm-input" min="100" max="1000" value="300">
           <span class="wpm-label">WPM</span>
         </div>
-        <div class="position-info" id="position-info">0 / 0</div>
-        <button class="exit-btn" id="exit-btn">Exit (Esc)</button>
       </div>
     </div>
   </div>
@@ -484,9 +521,27 @@
     const progressContainer = document.getElementById('progress-container');
     const progressFill = document.getElementById('progress-fill');
     const progressHandle = document.getElementById('progress-handle');
-    const positionInfo = document.getElementById('position-info');
     const exitBtn = document.getElementById('exit-btn');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
     const dragOverlay = document.getElementById('drag-overlay');
+
+    // UI auto-hide
+    let uiHideTimeout = null;
+
+    function showUI() {
+      reader.classList.remove('ui-hidden');
+      clearTimeout(uiHideTimeout);
+      if (state.playing) {
+        uiHideTimeout = setTimeout(() => {
+          reader.classList.add('ui-hidden');
+        }, 2500);
+      }
+    }
+
+    function setupUIAutoHide() {
+      reader.addEventListener('mousemove', showUI);
+      reader.addEventListener('click', showUI);
+    }
 
     // ORP (Optimal Recognition Point) - ~30% into word
     function getORPIndex(word) {
@@ -569,7 +624,6 @@
       const percent = state.words.length > 0 ? (state.position / state.words.length) * 100 : 0;
       progressFill.style.width = `${percent}%`;
       progressHandle.style.left = `${percent}%`;
-      positionInfo.textContent = `${state.position} / ${state.words.length}`;
     }
 
     // Play next word
@@ -601,6 +655,7 @@
       }
       state.playing = true;
       playBtn.textContent = '⏸';
+      showUI(); // Start auto-hide timer
       playNext();
     }
 
@@ -612,6 +667,7 @@
         clearTimeout(state.timeoutId);
         state.timeoutId = null;
       }
+      showUI(); // Keep UI visible when paused
     }
 
     // Toggle play/pause
@@ -670,6 +726,7 @@
 
       landing.classList.add('hidden');
       reader.classList.add('active');
+      reader.classList.remove('ui-hidden');
 
       updateProgress();
       if (state.words[state.position]) {
@@ -895,11 +952,22 @@
     // Exit button
     exitBtn.addEventListener('click', exitReader);
 
+    // Fullscreen button
+    fullscreenBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        document.documentElement.requestFullscreen();
+      }
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       // Only handle in reader mode, and not when typing in inputs
       if (!reader.classList.contains('active')) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      showUI(); // Show UI on any key press
 
       switch (e.code) {
         case 'Space':
@@ -928,11 +996,20 @@
           e.preventDefault();
           exitReader();
           break;
+        case 'KeyF':
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            document.documentElement.requestFullscreen();
+          }
+          break;
       }
     });
 
     // Initialize
     loadState();
+    setupUIAutoHide();
   </script>
 </body>
 </html>
